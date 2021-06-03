@@ -4,6 +4,7 @@ public class Main {
 
     public static void main(String[] args) {
         var simulator = new Simulator();
-        simulator.simulate(1000);
+//        simulator.simulate(1000);
+        simulator.runLongSimulation();
     }
 }

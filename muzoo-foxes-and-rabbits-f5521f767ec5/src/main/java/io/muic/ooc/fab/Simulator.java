@@ -1,17 +1,14 @@
 package io.muic.ooc.fab;
 
-
+import io.muic.ooc.fab.observer.SimulatorViewObserver;
 import io.muic.ooc.fab.view.SimulatorView;
+import io.muic.ooc.fab.observer.Observable;
 
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
-import java.util.Random;
-import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.awt.Color;
+import java.util.List;
 
-public class Simulator {
+public class Simulator extends Observable{
 
     // Constants representing configuration information for the simulation.
     // The default width for the grid.
@@ -19,20 +16,16 @@ public class Simulator {
     // The default depth of the grid.
     private static final int DEFAULT_DEPTH = 80;
     // The probability that a fox will be created in any given grid position.
-    private static final double FOX_CREATION_PROBABILITY = 0.02;
-    // The probability that a rabbit will be created in any given position.
-    private static final double RABBIT_CREATION_PROBABILITY = 0.08;
 
     // Lists of animals in the field.
-    private List<Animal> animals;
+    private List<Actor> actors;
     // The current state of the field.
     private Field field;
     // The current step of the simulation.
     private int step;
     // A graphical view of the simulation.
     private SimulatorView view;
-    // Random generator
-    private static final Random RANDOM = new Random();
+
 
     /**
      * Construct a simulation field with default size.
@@ -54,51 +47,15 @@ public class Simulator {
             depth = DEFAULT_DEPTH;
             width = DEFAULT_WIDTH;
         }
-
-        animals = new ArrayList<>();
+        actors = new ArrayList<>();
         field = new Field(depth, width);
-
         // Create a view of the state of each location in the field.
         view = new SimulatorView(depth, width);
-        view.setColor(Rabbit.class, Color.ORANGE);
-        view.setColor(Fox.class, Color.BLUE);
-        view.addWindowListener(new WindowListener() {
-            @Override
-            public void windowOpened(WindowEvent e) {
-
-            }
-
-            @Override
-            public void windowClosing(WindowEvent e) {
-
-            }
-
-            @Override
-            public void windowClosed(WindowEvent e) {
-
-            }
-
-            @Override
-            public void windowIconified(WindowEvent e) {
-
-            }
-
-            @Override
-            public void windowDeiconified(WindowEvent e) {
-
-            }
-
-            @Override
-            public void windowActivated(WindowEvent e) {
-
-            }
-
-            @Override
-            public void windowDeactivated(WindowEvent e) {
-
-            }
-        });
-        // Setup a valid starting point.
+        ActorType[] actorTypes = ActorType.values();
+        for (int i = 0; i < actorTypes.length; i++){
+            view.setColor(actorTypes[i].getActorClass(), actorTypes[i].getColor());
+        }
+        addObserver(new SimulatorViewObserver(view));
         reset();
     }
 
@@ -119,7 +76,7 @@ public class Simulator {
     public void simulate(int numSteps) {
         for (int step = 1; step <= numSteps && view.isViable(field); step++) {
             simulateOneStep();
-            // delay(60);   // uncomment this to run more slowly
+            delay(60);   // uncomment this to run more slowly
         }
     }
 
@@ -129,21 +86,19 @@ public class Simulator {
      */
     public void simulateOneStep() {
         step++;
-
         // Provide space for newborn rabbits.
-        List<Animal> newAnimals = new ArrayList<>();
+        List<Actor> newActors = new ArrayList<>();
         // Let all rabbits act.
-        for (Iterator<Animal> it = animals.iterator(); it.hasNext();) {
-            Animal animal = it.next();
-            animal.act(newAnimals);
-            if (!animal.isAlive()) {
+        for (Iterator<Actor> it = actors.iterator(); it.hasNext(); ) {
+            Actor ac = it.next();
+            ac.act(newActors);
+            if (!ac.isAlive()) {
                 it.remove();
             }
         }
-
         // Add the newly born foxes and rabbits to the main lists.
-        animals.addAll(newAnimals);
-        view.showStatus(step, field);
+        actors.addAll(newActors);
+        notifyAllObservers(step, field);
     }
 
     /**
@@ -151,33 +106,10 @@ public class Simulator {
      */
     public void reset() {
         step = 0;
-        animals.clear();
-        populate();
-
+        actors.clear();
+        new FieldPopulator().populate(field, actors);
         // Show the starting state in the view.
-        view.showStatus(step, field);
-    }
-
-    /**
-     * Randomly populate the field with foxes and rabbits.
-     */
-    private void populate() {
-        
-        field.clear();
-        for (int row = 0; row < field.getDepth(); row++) {
-            for (int col = 0; col < field.getWidth(); col++) {
-                if (RANDOM.nextDouble() <= FOX_CREATION_PROBABILITY) {
-                    Location location = new Location(row, col);
-                    Fox fox = new Fox(true, field, location);
-                    animals.add(fox);
-                } else if (RANDOM.nextDouble() <= RABBIT_CREATION_PROBABILITY) {
-                    Location location = new Location(row, col);
-                    Rabbit rabbit = new Rabbit(true, field, location);
-                    animals.add(rabbit);
-                }
-                // else leave the location empty.
-            }
-        }
+        notifyAllObservers(step,field);
     }
 
     /**
